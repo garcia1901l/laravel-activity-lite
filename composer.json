@@ -1,0 +1,38 @@
+{
+    "name": "garcia1901l/laravel-activity-lite",
+    "description": "Lightweight activity logger for Laravel ",
+    "type": "laravel-package",
+    "license": "MIT",
+    "authors": [{
+        "name": "Frank Garcia",
+        "email": "garcia1901l@gmail.com"
+    }],
+    "require": {
+        "php": "^7.2.5|^8.0",
+        "illuminate/database": "*",
+        "illuminate/events": "^7.0|^8.0|^9.0|^10.0|^11.0|^12.0",
+        "illuminate/support": "^7.0|^8.0|^9.0|^10.0|^11.0|^12.0"        
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.1",
+        "phpunit/phpunit": "^11.5"
+    },
+    "config": {
+        "platform-check": false,
+        "sort-packages": true
+    },
+    "autoload": {
+        "psr-4": {
+            "Garcia1901l\\LaravelActivityLite\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Garcia1901l\\LaravelActivityLite\\ActivityLiteServiceProvider"
+            ]
+        }
+    }
+}
