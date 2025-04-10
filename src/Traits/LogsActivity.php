@@ -20,7 +20,7 @@ trait LogsActivity
         static::created(function ($model) {
             $model->logAction('created');
         });
-        
+
         static::updated(function ($model) {
             $changes = $model->getDirty();
             if (array_key_exists('deleted_at', $changes) && count($changes) === 1) {
@@ -28,20 +28,20 @@ trait LogsActivity
             }
             $model->logAction('updated');
         });
-        
+
         static::deleted(function ($model) {
             // Determinar el tipo de acción de eliminación
             $usesSoftDeletes = in_array(
                 SoftDeletes::class, 
                 class_uses_recursive($model)
             );
-            
+
             if ($usesSoftDeletes) {
                 $action = $model->isForceDeleting() ? 'force_deleted' : 'soft_deleted';
             } else {
                 $action = 'deleted'; 
             }
-            
+
             $model->logAction($action);
         });
 
@@ -50,7 +50,6 @@ trait LogsActivity
                 $model->logAction('restored');
             });
         }
-        
     }
 
     protected static function isModelExcluded(): bool
@@ -85,7 +84,7 @@ trait LogsActivity
             ]);
         } finally {
             static::$logging = false;
-        }        
+        }
     }
 
     public static function logManualAction(string $action, array $data = []): void
@@ -109,24 +108,31 @@ trait LogsActivity
 
     protected function getActivityData(string $action): array
     {
-        return match($action) {
-            'created' => ['attributes' => $this->getAttributes()],
-            'updated' => [
-                'changes' => $this->getDirty(), // Solo campos modificados (valores nuevos)
-                'old' => array_intersect_key($this->getOriginal(), $this->getDirty())
-            ],
-            'soft_deleted' => [
-                'attributes' => $this->getAttributes(),
-                'deleted_at' => now()->toDateTimeString()
-            ],
-            'force_deleted' => ['attributes' => $this->getAttributes()],
-            'deleted' => ['attributes' => $this->getAttributes()],
-            'restored' => [
-                'attributes' => $this->getAttributes(),
-                'restored_at' => now()->toDateTimeString()
-            ],
-            default => []
-        };
+        switch($action) {
+            case 'created':
+                return ['attributes' => $this->getAttributes()];
+            case 'updated':
+                return [
+                    'changes' => $this->getDirty(), // Solo campos modificados (valores nuevos)
+                    'old' => array_intersect_key($this->getOriginal(), $this->getDirty())
+                ];
+            case 'soft_deleted':
+                return [
+                    'attributes' => $this->getAttributes(),
+                    'deleted_at' => now()->toDateTimeString()
+                ];
+            case 'force_deleted':
+                return ['attributes' => $this->getAttributes()];
+            case 'deleted':
+                return ['attributes' => $this->getAttributes()];
+            case 'restored':
+                return [
+                    'attributes' => $this->getAttributes(),
+                    'restored_at' => now()->toDateTimeString()
+                ];
+            default:
+                return [];
+        }
     }
 
     protected function resolveCauserType(): ?string
