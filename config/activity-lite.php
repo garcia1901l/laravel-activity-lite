@@ -1,14 +1,22 @@
 <?php
 
 return [
+   'collection' => env('ACTIVITY_LITE_COLLECTION', 'activity_logs'),
     /*
     |--------------------------------------------------------------------------
-    | Database File Name
+    | Database Configuration
     |--------------------------------------------------------------------------
-    | Name of the SQLite file (will always be stored in storage/logs/)
-    | Do not include extension! .sqlite will be added automatically
     */
-    'database_name' => env('ACTIVITY_LITE_DB_NAME', 'activity_lite'), // Will generate activity_lite.sqlite
+   'database' => [
+        'name' => env('ACTIVITY_LITE_DB_NAME', 'activity_lite'),
+        'mongodb' => [
+            'host' => env('ACTIVITY_LITE_MONGODB_HOST', 'localhost'),
+            'port' => env('ACTIVITY_LITE_MONGODB_PORT', 27017),
+            'username' => env('ACTIVITY_LITE_MONGODB_USERNAME'),
+            'password' => env('ACTIVITY_LITE_MONGODB_PASSWORD'),
+            'auth_db' => env('ACTIVITY_LITE_MONGODB_AUTH_DB', 'admin'),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

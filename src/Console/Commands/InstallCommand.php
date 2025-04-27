@@ -3,115 +3,209 @@
 namespace Garcia1901l\LaravelActivityLite\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 
 class InstallCommand extends Command
 {
-    protected $signature = 'activity-lite:install';
-    protected $description = 'Install Laravel Activity Lite package with SQLite database';
+    protected $signature = 'activity-lite:install {--test : Probar conexión después de instalar}';
 
-    // Constants for repeated values
-    const CONNECTION_NAME = 'activity_lite';
-    const DEFAULT_DB_NAME = 'activity_lite';
+    protected $description = 'Instala el paquete Laravel Activity Lite con MongoDB';
 
-    protected function getConfiguration(): array
+    public function handle()
     {
-        return [
-            'database_name' => config('activity-lite.database_name', self::DEFAULT_DB_NAME),
-        ];
+        $this->showWelcomeMessage();
+
+        if (!$this->checkRequirements()) {
+            $this->error('✖ Requisitos no cumplidos. Instalación cancelada.');
+            return defined('Command::FAILURE') ? Command::FAILURE : 1;
+        }
+
+        $this->configureMongoDB();
+
+        if ($this->option('test') && !$this->testConnection()) {
+            return defined('Command::FAILURE') ? Command::FAILURE : 1;
+        }
+
+        $this->showSuccessMessage();
+        return defined('Command::SUCCESS') ? Command::SUCCESS : 0;
+    }
+
+    protected function showWelcomeMessage(): void
+    {
+        $this->line('');
+        $this->line('═══════════════════════════════════════════════════');
+        $this->line('  Laravel Activity Lite - Instalación con MongoDB  ');
+        $this->line('═══════════════════════════════════════════════════');
+        $this->line('');
     }
 
     protected function checkRequirements(): bool
     {
-        if (!extension_loaded('sqlite3')) {
-            $this->error('SQLite3 extension is not enabled in your PHP installation.');
-            $this->line('Please enable it in your php.ini and restart your web server.');
-            return false;
+        $this->info('Verificando requisitos...');
+
+        $requirementsMet = true;
+
+        // Verificar extensión MongoDB
+        if (!extension_loaded('mongodb')) {
+            $this->error('✖ Extensión MongoDB para PHP no está instalada');
+            $this->line('  Para instalar:');
+            $this->line('  - Windows: Descargar php_mongodb.dll para tu versión de PHP');
+            $this->line('  - Linux/Mac: Ejecutar "pecl install mongodb"');
+            $this->line('  Luego agregar "extension=mongodb" a tu php.ini');
+            $requirementsMet = false;
+        } else {
+            $this->info('✓ Extensión MongoDB para PHP está instalada');
         }
 
-        return true;
+        // Verificar paquete jenssegers/mongodb
+        if (!class_exists(\MongoDB\Laravel\MongoDBServiceProvider::class)) {
+            $this->error('✖ Paquete mongodb/laravel-mongodb no está instalado');
+            $this->line('  Ejecuta: composer require mongodb/laravel-mongodb');
+            $requirementsMet = false;
+        } else {
+            $this->info('✓ Paquete Laravel MongoDB está instalado');
+        }
+
+        return $requirementsMet;
     }
 
-    protected function createSqliteDatabase(): bool
+    protected function getDatabaseName(): string
     {
+        $defaultName = config('activity-lite.database.name', 'activity_lite');
+
+        return $this->option('name') ?? $this->ask(
+            'Nombre de la base de datos MongoDB',
+            $defaultName
+        );
+    }
+
+    protected function getMongoConfig(string $dbName): array
+    {
+        return [
+            'driver' => 'mongodb',
+            'host' => config('activity-lite.database.mongodb.host', 'localhost'),
+            'port' => config('activity-lite.database.mongodb.port', 27017),
+            'database' => $dbName,
+            'username' => config('activity-lite.database.mongodb.username'),
+            'password' => config('activity-lite.database.mongodb.password'),
+            'options' => [
+                'database' => config('activity-lite.database.mongodb.auth_db', 'admin')
+            ]
+        ];
+    }
+
+    protected function configureMongoDB(): void
+    {
+        $this->info('Configurando conexión a MongoDB...');
+
+        $config = [
+            'driver' => 'mongodb',
+            'host' => config('activity-lite.database.mongodb.host', 'localhost'),
+            'port' => config('activity-lite.database.mongodb.port', 27017),
+            'database' => config('activity-lite.database.name', 'activity_lite'),
+            'username' => config('activity-lite.database.mongodb.username'),
+            'password' => config('activity-lite.database.mongodb.password'),
+            'options' => [
+                'database' => config('activity-lite.database.mongodb.auth_db', 'admin')
+            ]
+        ];
+
+        Config::set('database.connections.activity_lite', $config);
+        $this->updateEnvFile($config);
+        $this->info('✓ Conexión configurada correctamente');
+    }
+
+    protected function testConnection(): bool
+    {
+        $this->info('Probando conexión básica a MongoDB...');
+
         try {
-            $config = $this->getConfiguration();
-            $dbName = $config['database_name'] ?? self::DEFAULT_DB_NAME;
+            $connection = DB::connection('activity_lite');
+            
+            // Método más compatible para verificar conexión
+            $connection->getMongoClient()->selectDatabase(
+                config('activity-lite.database.name')
+            )->command(['ping' => 1]);
+            
+            $this->info('✓ Conexión exitosa a MongoDB');
+            return true;
+            
+        } catch (\Exception $e) {
+            $this->error('✖ Error de conexión: '.$e->getMessage());
+            return false;
+        }
+    }   
 
-            if (empty($dbName)) {
-                throw new \RuntimeException('Database name cannot be empty.');
-            }
+    protected function updateEnvFile(array $config): void
+    {
+        $envPath = base_path('.env');
 
-            $logsPath = storage_path('logs');
-            $dbPath = "{$logsPath}/{$dbName}.sqlite";
+        if (!file_exists($envPath)) {
+            $this->warn('Archivo .env no encontrado. Configuración no guardada permanentemente.');
+            return;
+        }
 
-            if (!File::exists($logsPath) && !File::makeDirectory($logsPath, 0755, true)) {
-                throw new \RuntimeException("Cannot create directory: {$logsPath}");
-            }
+        $envUpdates = [
+            'ACTIVITY_LITE_DB_NAME' => $config['database'],
+            'ACTIVITY_LITE_MONGODB_HOST' => $config['host'],
+            'ACTIVITY_LITE_MONGODB_PORT' => $config['port'],
+            'ACTIVITY_LITE_MONGODB_USERNAME' => $config['username'] ?? '',
+            'ACTIVITY_LITE_MONGODB_PASSWORD' => $config['password'] ?? '',
+            'ACTIVITY_LITE_MONGODB_AUTH_DB' => $config['options']['database'] ?? 'admin'
+        ];
 
-            if (!File::exists($dbPath)) {
-                if (File::put($dbPath, '') === false) {
-                    throw new \RuntimeException("Cannot create database file: {$dbPath}");
-                }
-                $this->info("SQLite database created at: {$dbPath}");
+        $envContent = file_get_contents($envPath);
+        $updated = false;
+
+        foreach ($envUpdates as $key => $value) {
+            $value = $this->sanitizeEnvValue($value);
+
+            if (strpos($envContent, "$key=") !== false) {
+                $envContent = preg_replace(
+                    "/^{$key}=.*/m",
+                    "{$key}={$value}",
+                    $envContent
+                );
             } else {
-                $this->info("SQLite database already exists at: {$dbPath}");
+                $envContent .= PHP_EOL . "{$key}={$value}";
+                $updated = true;
             }
+        }
 
-            // Configure the database connection
-            Config::set('database.connections.' . self::CONNECTION_NAME, [
-                'driver' => 'sqlite',
-                'database' => $dbPath,
-                'prefix' => '',
-                'foreign_key_constraints' => false,
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            $this->error('Error creating SQLite database: ' . $e->getMessage());
-            return false;
+        if ($updated) {
+            file_put_contents($envPath, $envContent);
+            $this->info('✓ Archivo .env actualizado');
         }
     }
 
-    protected function runMigrations(): bool
+    protected function sanitizeEnvValue($value): string
     {
-        try {
-           
-            $this->call('migrate', [
-                '--database' => self::CONNECTION_NAME,
-                '--path' => app('activity-lite.migrations_path'),
-                '--force' => true,
-            ]);
-
-            $this->info('Migrations completed successfully.');
-            return true;
-        } catch (\Exception $e) {
-            $this->error('Error running migrations: ' . $e->getMessage());
-            return false;
+        if (empty($value)) {
+            return '';
         }
+
+        // Si contiene espacios o caracteres especiales, usar comillas
+        if (preg_match('/[\s#\$\'"]/', $value)) {
+            return '"' . addslashes($value) . '"';
+        }
+
+        return $value;
     }
 
-    public function handle()
+    protected function showSuccessMessage(): void
     {
-        $this->info('Setting up Laravel Activity Lite...');
-
-        // Step 1: Check requirements
-        if (!$this->checkRequirements()) {
-            return Command::FAILURE;
-        }
-
-        // Step 2: Create SQLite database
-        if (!$this->createSqliteDatabase()) {
-            return Command::FAILURE;
-        }
-
-        // Step 3: Run migrations
-        if (!$this->runMigrations()) {
-            return Command::FAILURE;
-        }
-
-        $this->info('Package installed successfully!');
-        return Command::SUCCESS;
+        $config = config('activity-lite.database.mongodb');
+        
+        $this->line("\n".'═══════════════════════════════════════════════════');
+        $this->info('  Instalación completada con éxito!');
+        $this->line('═══════════════════════════════════════════════════'."\n");
+        $this->line('Configuración MongoDB:');
+        $this->line('- Base de datos: '.config('activity-lite.database.name'));
+        $this->line('- Host: '.($config['host'] ?? 'localhost'));
+        $this->line('- Puerto: '.($config['port'] ?? 27017)."\n");
+        $this->line('Puedes modificar estos valores en:');
+        $this->line('- config/activity-lite.php');
+        $this->line('- .env'."\n");
     }
 }

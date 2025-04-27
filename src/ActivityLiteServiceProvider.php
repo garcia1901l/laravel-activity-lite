@@ -4,38 +4,56 @@ namespace Garcia1901l\LaravelActivityLite;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Config;
+use MongoDB\Laravel\Eloquent\Model;
 
 class ActivityLiteServiceProvider extends ServiceProvider
 {
+    public function register()
+    {
+        $this->mergeConfigFrom(__DIR__.'/../config/activity-lite.php', 'activity-lite');
+        
+        // Registrar la conexión MongoDB si no existe
+        $this->configureDatabaseConnection();
+        
+        // Registrar el modelo ActivityLog con la conexión adecuada
+        $this->app->bind(Model::class, function () {
+            return new \Garcia1901l\LaravelActivityLite\Models\ActivityLog();
+        });
+    }
+
     public function boot()
     {
-        $this->configureSqliteConnection();
-
+        $this->configureDatabaseConnection();
+        
         if ($this->app->runningInConsole()) {
             $this->publishResources();
             $this->registerCommands();
         }
     }
 
-    protected function configureSqliteConnection()
+    protected function configureDatabaseConnection()
     {
-        $databasePath = storage_path(
-            'logs/' . Config::get('activity-lite.database_name', 'activity_lite') . '.sqlite'
-        );
-
-        Config::set('database.connections.activity_lite', [
-            'driver' => 'sqlite',
-            'database' => $databasePath,
-            'prefix' => '',
-            'foreign_key_constraints' => true,
-        ]);
+        // Solo configurar si no existe ya la conexión
+        if (!Config::has('database.connections.activity_lite')) {
+            Config::set('database.connections.activity_lite', [
+                'driver' => 'mongodb',
+                'host' => config('activity-lite.database.mongodb.host', 'localhost'),
+                'port' => config('activity-lite.database.mongodb.port', 27017),
+                'database' => config('activity-lite.database.name', 'activity_lite'),
+                'username' => config('activity-lite.database.mongodb.username'),
+                'password' => config('activity-lite.database.mongodb.password'),
+                'options' => [
+                    'database' => config('activity-lite.database.mongodb.auth_db', 'admin')
+                ]
+            ]);
+        }
     }
 
     protected function publishResources()
     {
         $this->publishes([
             __DIR__.'/../config/activity-lite.php' => config_path('activity-lite.php'),
-        ], 'activity-lite-config');
+        ], 'activity-lite');
     }
 
     protected function registerCommands()
@@ -45,20 +63,5 @@ class ActivityLiteServiceProvider extends ServiceProvider
             Console\Commands\CleanActivityCommand::class,
             Console\Commands\QueryLogsCommand::class,
         ]);
-    }
-
-    public function register()
-    {
-        $this->mergeConfigFrom(__DIR__.'/../config/activity-lite.php', 'activity-lite');
-
-        $this->app->bind('activity-lite.migrations_path', function () {
-            // Si el paquete está en vendor (instalado vía Composer)
-            if (file_exists(base_path('vendor/garcia1901l/laravel-activity-lite'))) {
-                return 'vendor/garcia1901l/laravel-activity-lite/database/migrations';
-            }
-            
-            // Si el paquete está en packages (desarrollo local)
-            return 'packages/garcia1901l/laravel-activity-lite/database/migrations';
-        });
     }
 }

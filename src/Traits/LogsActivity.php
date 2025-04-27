@@ -82,7 +82,9 @@ trait LogsActivity
                 'causer_id' => $this->resolveCauserId(),
                 'data' => $this->getActivityData($action)
             ]);
-        } finally {
+        } catch (\Exception $e) {
+            // No registrar nada para evitar llenar el disco
+        }  finally {
             static::$logging = false;
         }
     }

@@ -36,14 +36,20 @@ class CleanActivityCommand extends Command
         // Calculate the cutoff date based on the number of days
         $cutoffDate = Carbon::now()->subDays($days);
 
-        // Delete records older than the cutoff date
-        $count = ActivityLog::where('created_at', '<', $cutoffDate)
-            ->delete();
+        $collection = ActivityLog::collection();
 
-        // Inform the user about the number of deleted records
-        $this->info("Deleted {$count} activity log(s) older than {$days} days.");
+        // Ejecutamos la operación de eliminación masiva
+        $result = $collection->deleteMany([
+            'created_at' => [ '$lt' => $cutoffDate->toDateTimeString() ]
+        ]);
 
-        if ($count === 0) {
+        // Obtenemos el número de registros eliminados
+        $deletedCount = $result['deletedCount'] ?? 0;
+
+        // Mostramos el resultado
+        $this->info("Deleted {$deletedCount} activity log(s) older than {$days} days.");
+
+        if ($deletedCount === 0) {
             $this->line('No records found older than '.$days.' days.');
         }
     }

@@ -58,51 +58,50 @@ class QueryLogsCommand extends Command
 
     protected function applyFilters($query)
     {
-        // Aplicar límites de seguridad
         $limit = min(
             (int)$this->option('limit') ?: self::DEFAULT_LIMIT,
             self::MAX_LIMIT
         );
-        $query->limit($limit);
+        $query->take($limit); // MongoDB usa take() en lugar de limit()
 
+        // Filtro por modelo
         if ($model = $this->option('model')) {
-            $this->filterByModel($query, $model);
+            if (Str::contains($model, '\\')) {
+                $query->where('model_type', $model);
+            } else {
+                $query->where('model_type', 'regexp', '/.*\\\\' . $model . '$/');
+            }
         }
 
+        // Filtro por ID
         if ($id = $this->option('id')) {
-            $query->where('model_id', $id);
+            $query->where('model_id', (int)$id); // Asegurar tipo numérico
         }
 
+        // Filtro por acción
         if ($action = $this->option('action')) {
             $query->where('action', $action);
         }
 
+        // Filtro por causante
         if ($causer = $this->option('causer')) {
-            is_numeric($causer)
-                ? $query->where('causer_id', $causer)
-                : $query->where('causer_type', 'like', "%{$causer}%");
+            if (is_numeric($causer)) {
+                $query->where('causer_id', (int)$causer);
+            } else {
+                $query->where('causer_type', 'regexp', '/.*' . $causer . '.*/');
+            }
         }
 
-        // Manejo seguro de días sin otros filtros
-        $days = $this->option('days');
-        if ($days) {
+        // Filtro por días
+        if ($days = $this->option('days')) {
             $maxDays = $this->hasFilters() ? 365 : self::MAX_DAYS_UNFILTERED;
             $days = min((int)$days, $maxDays);
             $query->where('created_at', '>=', now()->subDays($days));
         }
 
-        $this->option('latest')
-            ? $query->orderBy('created_at', 'desc')
-            : $query->orderBy('created_at', 'asc');
-    }
-
-    protected function filterByModel($query, $modelInput)
-    {
-        if (Str::contains($modelInput, '\\')) {
-            $query->where('model_type', $modelInput);
-        } else {
-            $query->where('model_type', 'like', "%\\{$modelInput}");
-        }
+        // Ordenamiento
+        $orderDirection = $this->option('latest') ? 'desc' : 'asc';
+        $query->orderBy('created_at', $orderDirection);
     }
 
     protected function processResults($results)
@@ -169,26 +168,12 @@ class QueryLogsCommand extends Command
 
     protected function formatData($data)
     {
-        // Si ya es un array, no necesitamos decodificar
-        if (is_array($data)) {
-            $dataArray = $data;
-        }
-        // Si es string JSON, lo decodificamos
-        elseif (is_string($data)) {
-            $dataArray = json_decode($data, true);
-        }
-        // Si es null o no reconocido
-        else {
+        // MongoDB ya devuelve los datos como array, no necesitamos decodificar JSON
+        if (empty($data)) {
             return '<fg=gray>No data</>';
         }
 
-        // Si la decodificación falló o está vacío
-        if (empty($dataArray)) {
-            return '<fg=gray>No data</>';
-        }
-
-        // Formatear los datos para visualización
-        return collect($dataArray)->map(function ($value, $key) {
+        return collect($data)->map(function ($value, $key) {
             if (is_array($value)) {
                 $value = json_encode($value, JSON_PRETTY_PRINT);
             }
@@ -204,19 +189,28 @@ class QueryLogsCommand extends Command
         $handle = fopen($path, 'w');
 
         // Headers
-        fputcsv($handle, ['ID', 'Action', 'Model', 'Model ID', 'Causer', 'Causer ID', 'Date', 'Data']);
+        fputcsv($handle, [
+            'ID',
+            'Action',
+            'Model',
+            'Model ID',
+            'Causer',
+            'Causer ID',
+            'Date',
+            'Data'
+        ]);
 
         // Data
         foreach ($results as $row) {
             fputcsv($handle, [
-                $row->id,
+                (string) $row->id,
                 $row->action,
                 $row->model_type,
-                $row->model_id,
-                $row->causer_type,
-                $row->causer_id,
-                $row->created_at,
-                $row->data
+                is_array($row->model_id) ? json_encode($row->model_id) : (string) $row->model_id,
+                $row->causer_type ?? 'N/A',
+                $row->causer_id ?? 'N/A',
+                $row->created_at->toDateTimeString(),
+                is_array($row->data) ? json_encode($row->data) : (string) $row->data
             ]);
         }
 

@@ -6,20 +6,32 @@
 [![Laravel Version](https://img.shields.io/badge/Laravel-7.x%20to%2012.x-orange)](https://laravel.com)  
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)  
 
-Lightweight activity logger for Laravel using SQLite (Laravel 7–12 compatible).
+Lightweight activity logger for Laravel using MongoDB (Laravel 10–12 compatible).
 
 ---
 
 ## ✨ Features
 
 - 🚀 Automatic model activity tracking (create/update/delete)
-- 🔍 SQLite database for lightweight operation
+- 🔍 MongoDB database for lightweight operation
 - 👤 Tracks causer (user, artisan, queue jobs)
 - ⚡ Configurable event logging
 - 📊 Powerful querying capabilities
 - 📦 Easy installation and setup
 
 ---
+
+## Requisitos de MongoDB
+
+El paquete es compatible con estas versiones del driver oficial:
+
+- `mongodb/laravel-mongodb`: 3.8+ (incluye v4 y v5)
+- PHP extension `mongodb`: 1.10+
+
+Si necesitas usar una versión diferente, instálala manualmente:
+
+```bash
+composer require mongodb/laravel-mongodb:"YOUR_VERSION"
 
 ## 📦 Installation
 
@@ -43,7 +55,7 @@ php artisan activity-lite:install
 
 This will:
 
-- Create the SQLite database at: `storage/logs/activity_lite.sqlite`
+- Create the MongoDB database
 - Run the required migrations
 
 ---
@@ -166,9 +178,9 @@ public function getActivityLogOptions(): array
 
 ## ✅ Requirements
 
-- PHP 7.2.5+
-- Laravel 7.x to 12.x
-- SQLite extension for PHP
+- PHP 8.1+
+- Laravel 10.x to 12.x
+- MongoDB extension for PHP
 
 ---
 

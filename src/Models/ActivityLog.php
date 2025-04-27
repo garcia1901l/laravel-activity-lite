@@ -2,8 +2,7 @@
 
 namespace Garcia1901l\LaravelActivityLite\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Config;
+use MongoDB\Laravel\Eloquent\Model;
 
 class ActivityLog extends Model
 {
@@ -13,6 +12,13 @@ class ActivityLog extends Model
      * @var string
      */
     protected $connection = 'activity_lite';
+
+    /**
+     * The collection associated with the model.
+     *
+     * @var string
+     */
+    protected $collection;
 
     /**
      * The attributes that aren't mass assignable.
@@ -27,7 +33,7 @@ class ActivityLog extends Model
      * @var array
      */
     protected $casts = [
-        'data' => 'array'
+        'properties' => 'array'
     ];
 
     /**
@@ -38,34 +44,65 @@ class ActivityLog extends Model
      */
     public function __construct(array $attributes = [])
     {
-        // Asegurarse que la conexión existe
-        if (!Config::has('database.connections.activity_lite')) {
-            $this->configureDefaultConnection();
-        }
-
+        $this->collection = config('activity-lite.collection', 'activity_logs');
         parent::__construct($attributes);
     }
 
     /**
-     * Configure the default SQLite connection.
+     * Get the related model.
      */
-    protected function configureDefaultConnection()
+    public function subject()
     {
-        Config::set('database.connections.activity_lite', [
-            'driver' => 'sqlite',
-            'database' => storage_path('logs/activity_lite.sqlite'),
-            'prefix' => '',
-            'foreign_key_constraints' => false,
-        ]);
+        return $this->morphTo('subject');
     }
 
-    public function model()
-    {
-        return $this->morphTo();
-    }
-
+    /**
+     * Get the user that triggered the activity.
+     */
     public function causer()
     {
-        return $this->morphTo();
+        return $this->morphTo('causer');
+    }
+
+    /**
+     * Scope a query to only include activities for a given causer.
+     */
+    public function scopeCausedBy($query, $causer)
+    {
+        return $query->where('causer_id', $causer->getKey())
+                    ->where('causer_type', get_class($causer));
+    }
+
+    /**
+     * Scope a query to only include activities for a given subject.
+     */
+    public function scopeForSubject($query, $subject)
+    {
+        return $query->where('subject_id', $subject->getKey())
+                    ->where('subject_type', get_class($subject));
+    }
+
+    /**
+     * Scope a query to only include activities of a given type.
+     */
+    public function scopeForEvent($query, string $eventType)
+    {
+        return $query->where('event', $eventType);
+    }
+
+    /**
+     * Scope a query to only include activities from a given log.
+     */
+    public function scopeInLog($query, string $logName)
+    {
+        return $query->where('log_name', $logName);
+    }
+
+    /**
+     * Scope a query to only include recent activities.
+     */
+    public function scopeRecent($query, int $days = 7)
+    {
+        return $query->where('created_at', '>=', now()->subDays($days));
     }
 }
