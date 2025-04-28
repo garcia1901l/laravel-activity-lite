@@ -23,15 +23,17 @@ Lightweight activity logger for Laravel using MongoDB (Laravel 10–12 compatibl
 
 ## Requisitos de MongoDB
 
-El paquete es compatible con estas versiones del driver oficial:
+## MongoDB Setup
 
-- `mongodb/laravel-mongodb`: 3.8+ (incluye v4 y v5)
-- PHP extension `mongodb`: 1.10+
+Install the appropriate version for your Laravel:
 
-Si necesitas usar una versión diferente, instálala manualmente:
+- **Laravel 9**: `composer require jenssegers/mongodb:^3.9`
+- **Laravel 8**: `composer require jenssegers/mongodb:^3.8`
+- **Laravel 7**: `composer require jenssegers/mongodb:^3.7`
 
-```bash
-composer require mongodb/laravel-mongodb:"YOUR_VERSION"
+Don't forget to:
+1. Install the PHP extension: `pecl install mongodb`
+2. Enable it in your `php.ini`
 
 ## 📦 Installation
 
@@ -50,15 +52,33 @@ php artisan vendor:publish --provider="Garcia1901l\LaravelActivityLite\ActivityL
 ### 2. Run the installation command
 
 ```bash
+php artisan activity-lite:install [--test]
+```
+
+**Installation (default behavior)**  
+Run the command without options to set up the package:
+
+```bash
 php artisan activity-lite:install
 ```
 
 This will:
+- Create the MongoDB database (if it doesn't exist)
+- Run the required migrations for activity logs
+- Initialize the package configuration
 
-- Create the MongoDB database
-- Run the required migrations
+**Test connection (optional)**  
+Use the `--test` flag to verify your MongoDB connection without making changes:
 
----
+```bash
+php artisan activity-lite:install --test
+```
+
+This command will:
+- Check if the MongoDB connection is properly configured
+- Attempt to connect to the database
+- Return a success message if the connection works
+- Show an error message with details if something fails
 
 ## 🧑‍💻 Basic Usage
 
@@ -95,6 +115,9 @@ php artisan activity-lite:query --days=7
 
 # Filter by model
 php artisan activity-lite:query --model=User
+
+# Filter by model and id
+php artisan activity-lite:query --model=User --id=5
 
 # Filter by action
 php artisan activity-lite:query --action=updated
@@ -178,8 +201,8 @@ public function getActivityLogOptions(): array
 
 ## ✅ Requirements
 
-- PHP 8.1+
-- Laravel 10.x to 12.x
+- PHP 7.2+
+- Laravel 7.x to 9.x
 - MongoDB extension for PHP
 
 ---

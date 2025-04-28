@@ -2,7 +2,7 @@
 
 namespace Garcia1901l\LaravelActivityLite\Models;
 
-use MongoDB\Laravel\Eloquent\Model;
+use Jenssegers\Mongodb\Eloquent\Model;
 
 class ActivityLog extends Model
 {

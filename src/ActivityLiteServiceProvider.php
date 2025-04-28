@@ -4,7 +4,7 @@ namespace Garcia1901l\LaravelActivityLite;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Config;
-use MongoDB\Laravel\Eloquent\Model;
+use Jenssegers\Mongodb\Eloquent\Model;
 
 class ActivityLiteServiceProvider extends ServiceProvider
 {
