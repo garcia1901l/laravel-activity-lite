@@ -23,15 +23,16 @@ Lightweight activity logger for Laravel using MongoDB (Laravel 10–12 compatibl
 
 ## Requisitos de MongoDB
 
-El paquete es compatible con estas versiones del driver oficial:
+The package is compatible with these versions of the official driver:
 
 - `mongodb/laravel-mongodb`: 3.8+ (incluye v4 y v5)
 - PHP extension `mongodb`: 1.10+
 
-Si necesitas usar una versión diferente, instálala manualmente:
+If you need to use a different version, install it manually:
 
 ```bash
 composer require mongodb/laravel-mongodb:"YOUR_VERSION"
+```
 
 ## 📦 Installation
 
@@ -95,6 +96,9 @@ php artisan activity-lite:query --days=7
 
 # Filter by model
 php artisan activity-lite:query --model=User
+
+# Filter by model and id
+php artisan activity-lite:query --model=User --id=5
 
 # Filter by action
 php artisan activity-lite:query --action=updated

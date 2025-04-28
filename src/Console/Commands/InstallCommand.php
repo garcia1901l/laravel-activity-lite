@@ -8,16 +8,16 @@ use Illuminate\Support\Facades\DB;
 
 class InstallCommand extends Command
 {
-    protected $signature = 'activity-lite:install {--test : Probar conexión después de instalar}';
+    protected $signature = 'activity-lite:install {--test : Test connection after installation}';
 
-    protected $description = 'Instala el paquete Laravel Activity Lite con MongoDB';
+    protected $description = 'Installs the Laravel Activity Lite package with MongoDB';
 
     public function handle()
     {
         $this->showWelcomeMessage();
 
         if (!$this->checkRequirements()) {
-            $this->error('✖ Requisitos no cumplidos. Instalación cancelada.');
+            $this->error('✖ Requirements not met. Installation cancelled.');
             return defined('Command::FAILURE') ? Command::FAILURE : 1;
         }
 
@@ -35,69 +35,42 @@ class InstallCommand extends Command
     {
         $this->line('');
         $this->line('═══════════════════════════════════════════════════');
-        $this->line('  Laravel Activity Lite - Instalación con MongoDB  ');
+        $this->line('  Laravel Activity Lite - Installation with MongoDB  ');
         $this->line('═══════════════════════════════════════════════════');
         $this->line('');
     }
 
     protected function checkRequirements(): bool
     {
-        $this->info('Verificando requisitos...');
+        $this->info('Checking requirements...');
 
         $requirementsMet = true;
 
-        // Verificar extensión MongoDB
         if (!extension_loaded('mongodb')) {
-            $this->error('✖ Extensión MongoDB para PHP no está instalada');
-            $this->line('  Para instalar:');
-            $this->line('  - Windows: Descargar php_mongodb.dll para tu versión de PHP');
-            $this->line('  - Linux/Mac: Ejecutar "pecl install mongodb"');
-            $this->line('  Luego agregar "extension=mongodb" a tu php.ini');
+            $this->error('✖ MongoDB extension for PHP is not installed');
+            $this->line('  To install:');
+            $this->line('  - Windows: Download php_mongodb.dll for your PHP version');
+            $this->line('  - Linux/Mac: Run "pecl install mongodb"');
+            $this->line('  Then add "extension=mongodb" to your php.ini');
             $requirementsMet = false;
         } else {
-            $this->info('✓ Extensión MongoDB para PHP está instalada');
+            $this->info('✓ MongoDB extension for PHP is installed');
         }
 
-        // Verificar paquete jenssegers/mongodb
         if (!class_exists(\MongoDB\Laravel\MongoDBServiceProvider::class)) {
-            $this->error('✖ Paquete mongodb/laravel-mongodb no está instalado');
-            $this->line('  Ejecuta: composer require mongodb/laravel-mongodb');
+            $this->error('✖ Package mongodb/laravel-mongodb is not installed');
+            $this->line('  Run: composer require mongodb/laravel-mongodb');
             $requirementsMet = false;
         } else {
-            $this->info('✓ Paquete Laravel MongoDB está instalado');
+            $this->info('✓ Laravel MongoDB package is installed');
         }
 
         return $requirementsMet;
     }
 
-    protected function getDatabaseName(): string
-    {
-        $defaultName = config('activity-lite.database.name', 'activity_lite');
-
-        return $this->option('name') ?? $this->ask(
-            'Nombre de la base de datos MongoDB',
-            $defaultName
-        );
-    }
-
-    protected function getMongoConfig(string $dbName): array
-    {
-        return [
-            'driver' => 'mongodb',
-            'host' => config('activity-lite.database.mongodb.host', 'localhost'),
-            'port' => config('activity-lite.database.mongodb.port', 27017),
-            'database' => $dbName,
-            'username' => config('activity-lite.database.mongodb.username'),
-            'password' => config('activity-lite.database.mongodb.password'),
-            'options' => [
-                'database' => config('activity-lite.database.mongodb.auth_db', 'admin')
-            ]
-        ];
-    }
-
     protected function configureMongoDB(): void
     {
-        $this->info('Configurando conexión a MongoDB...');
+        $this->info('Configuring MongoDB connection...');
 
         $config = [
             'driver' => 'mongodb',
@@ -113,26 +86,25 @@ class InstallCommand extends Command
 
         Config::set('database.connections.activity_lite', $config);
         $this->updateEnvFile($config);
-        $this->info('✓ Conexión configurada correctamente');
+        $this->info('✓ Connection successfully configured');
     }
 
     protected function testConnection(): bool
     {
-        $this->info('Probando conexión básica a MongoDB...');
+        $this->info('Testing basic connection to MongoDB...');
 
         try {
             $connection = DB::connection('activity_lite');
             
-            // Método más compatible para verificar conexión
             $connection->getMongoClient()->selectDatabase(
                 config('activity-lite.database.name')
             )->command(['ping' => 1]);
             
-            $this->info('✓ Conexión exitosa a MongoDB');
+            $this->info('✓ Successfully connected to MongoDB');
             return true;
             
         } catch (\Exception $e) {
-            $this->error('✖ Error de conexión: '.$e->getMessage());
+            $this->error('✖ Connection error: '.$e->getMessage());
             return false;
         }
     }   
@@ -142,7 +114,7 @@ class InstallCommand extends Command
         $envPath = base_path('.env');
 
         if (!file_exists($envPath)) {
-            $this->warn('Archivo .env no encontrado. Configuración no guardada permanentemente.');
+            $this->warn('.env file not found. Configuration not permanently saved.');
             return;
         }
 
@@ -175,7 +147,7 @@ class InstallCommand extends Command
 
         if ($updated) {
             file_put_contents($envPath, $envContent);
-            $this->info('✓ Archivo .env actualizado');
+            $this->info('✓ .env file updated');
         }
     }
 
@@ -185,7 +157,6 @@ class InstallCommand extends Command
             return '';
         }
 
-        // Si contiene espacios o caracteres especiales, usar comillas
         if (preg_match('/[\s#\$\'"]/', $value)) {
             return '"' . addslashes($value) . '"';
         }
@@ -198,13 +169,13 @@ class InstallCommand extends Command
         $config = config('activity-lite.database.mongodb');
         
         $this->line("\n".'═══════════════════════════════════════════════════');
-        $this->info('  Instalación completada con éxito!');
+        $this->info('  Installation completed successfully!');
         $this->line('═══════════════════════════════════════════════════'."\n");
-        $this->line('Configuración MongoDB:');
-        $this->line('- Base de datos: '.config('activity-lite.database.name'));
+        $this->line('MongoDB Configuration:');
+        $this->line('- Database: '.config('activity-lite.database.name'));
         $this->line('- Host: '.($config['host'] ?? 'localhost'));
-        $this->line('- Puerto: '.($config['port'] ?? 27017)."\n");
-        $this->line('Puedes modificar estos valores en:');
+        $this->line('- Port: '.($config['port'] ?? 27017)."\n");
+        $this->line('You can modify these values in:');
         $this->line('- config/activity-lite.php');
         $this->line('- .env'."\n");
     }
